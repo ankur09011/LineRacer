@@ -49,6 +49,18 @@ def parallel(first_line, second_line):
         return False
 
 
+def solve_for_y(x, line):
+    '''
+    Solve for Y cord using line equation
+    :param x:
+    :param slope:
+    :param yintercept:
+    :return:
+    '''
+    slope = line.get("slope")
+    yintercept = line.get("intcpt")
 
-
-
+    if slope != None and yintercept != None:
+            return float(slope) * x + float(yintercept)
+    else:
+            raise Exception('Can not solve on a vertical line')
