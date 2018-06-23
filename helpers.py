@@ -1,3 +1,5 @@
+import math
+
 def get_intersection(first_line, second_line):
     """
     lines:
@@ -64,3 +66,16 @@ def solve_for_y(x, line):
             return float(slope) * x + float(yintercept)
     else:
             raise Exception('Can not solve on a vertical line')
+
+
+def distance(x1 , y1 , x2 , y2):
+    """
+    distance between two points
+    :param x1:
+    :param y1:
+    :param x2:
+    :param y2:
+    :return:
+    """
+    return math.sqrt(math.pow(x2 - x1, 2) +
+                math.pow(y2 - y1, 2) * 1.0)
