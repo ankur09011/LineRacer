@@ -12,7 +12,7 @@ from helpers import solve_for_y
 
 status = {'lap_no':1}
 
-racer_number = sys.argv[1] if len(sys.argv) > 1 else "3"
+racer_number = sys.argv[1] if len(sys.argv) > 1 else "2"
 racer_name = "racer" + racer_number
 race_routing_key = "race"
 print(racer_name)
@@ -108,7 +108,7 @@ def receive_log():
 
     channel = yield from protocol.channel()
     # exchange_name = 'cloudstack-events'
-    exchange_name = 'test-async-exchange'
+    exchange_name = 'race-exchange'
     queue_name = 'async-queue-%s' % random.randint(0, 10000)
     yield from channel.exchange(exchange_name, 'topic', auto_delete=False, passive=False, durable=False)
     yield from asyncio.wait_for(channel.queue(queue_name, durable=False, auto_delete=True), timeout=10)
