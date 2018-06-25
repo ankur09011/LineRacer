@@ -5,6 +5,8 @@ import aioamqp
 import random
 import sys
 
+import random
+
 
 
 # from helpers import get_intersection
@@ -39,6 +41,9 @@ import sys
 
 
 
+lap_no = 1
+no_of_racer = 3
+
 msg = {
             "x" : 1,
             "y": 2,
@@ -51,10 +56,36 @@ msg = {
         }
 
 
+def generate_msg():
+    global lap_no
+
+    race_msg = {"lap_no":lap_no}
+
+    racer_list = ["racer%d"%i for i in range(1,no_of_racer+1)]
+    print(racer_list)
+
+    x = random.randint(1,100)
+    y = random.randint(1,100)
+
+    race_msg["x"] = x
+    race_msg["y"] = y
+
+    for each_racer in racer_list:
+        race_msg[each_racer] = {}
+        slope = random.randint(1,100)
+        race_msg[each_racer]["slope"] = slope
+        race_msg[each_racer] ["intcpt"] = y - ( slope * x)
+
+    # increase lap no number for next call
+    lap_no = lap_no + 1
+
+    return race_msg
+
+
 
 
 @asyncio.coroutine
-def exchange_routing_topic():
+def exchange_routing_topic(msg):
 
 
 
@@ -72,6 +103,8 @@ def exchange_routing_topic():
     routing_key = sys.argv[1] if len(sys.argv) > 1 else 'race'
 
     yield from channel.exchange(exchange_name, 'topic')
+
+
 
     yield from channel.publish(msg, exchange_name=exchange_name, routing_key=routing_key)
     print(" [x] Sent %r" % msg)
@@ -122,9 +155,9 @@ def manage_race():
 
     print("sending start signal, will sleep for 1 second")
     # yield from asyncio.wait_for(exchange_routing_topic(),1)
-
-    yield from channel.publish(json.dumps(msg), exchange_name=exchange_name, routing_key="race")
-    print(" [x] Sent %r" % msg)
+    race_msg = generate_msg()
+    yield from channel.publish(json.dumps(race_msg), exchange_name=exchange_name, routing_key="race")
+    print(" [x] Sent %r" % race_msg)
 
     print(' [*] Waiting for logs. To exit press CTRL+C')
 

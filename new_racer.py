@@ -12,7 +12,7 @@ from helpers import solve_for_y
 
 status = {'lap_no':1}
 
-racer_number = sys.argv[1] if len(sys.argv) > 1 else "2"
+racer_number = sys.argv[1] if len(sys.argv) > 1 else "3"
 racer_name = "racer" + racer_number
 race_routing_key = "race"
 print(racer_name)
@@ -26,7 +26,7 @@ def exchange_routing_topic(x, y):
         return
 
     channel = yield from protocol.channel()
-    exchange_name = 'test-async-exchange'
+    exchange_name = 'race-exchange'
     message = {"racer_name": racer_name, "x": x, "y": y}
     routing_key = sys.argv[1] if len(sys.argv) > 1 else 'master'
 
