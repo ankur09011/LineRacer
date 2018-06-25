@@ -1,1 +1,4 @@
 # LineRacer
+
+## how to run
+
