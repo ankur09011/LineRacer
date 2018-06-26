@@ -2,7 +2,7 @@ import asyncio
 import aioamqp
 import random
 import json
-
+import logging
 
 import sys
 from time import sleep
@@ -10,17 +10,37 @@ from time import sleep
 
 from helpers import solve_for_y
 
+
+
+
+AMQP_HOST = "rabbit"
+AMQP_PORT =  5672
+
+logging.basicConfig(format='%(asctime)s %(message)s')
+
+logger = logging.getLogger()
+
+logger.setLevel(logging.INFO)
+logger.info("Hello From Racer")
+
+
+#for debugging
+slow_down_factor = 3
+
 status = {'lap_no':1}
 
 racer_number = sys.argv[1] if len(sys.argv) > 1 else "2"
 racer_name = "racer" + racer_number
 race_routing_key = "race"
 print(racer_name)
+logger.info(racer_name)
+
+
 
 @asyncio.coroutine
 def exchange_routing_topic(x, y):
     try:
-        transport, protocol = yield from aioamqp.connect('localhost', 5672)
+        transport, protocol = yield from aioamqp.connect(AMQP_HOST, 5672)
     except aioamqp.AmqpClosedConnection:
         print("closed connections")
         return
@@ -73,9 +93,11 @@ def do_while_loop(body):
         if not new_lap==lap_no:
             race = False
 
-        sleep(1)
+        sleep(slow_down_factor)
 
         yield from exchange_routing_topic(x,y)
+
+
 
 
 def set_flag(msg):
@@ -101,7 +123,7 @@ def callback(channel, body, envelope, properties):
 @asyncio.coroutine
 def receive_log():
     try:
-        transport, protocol = yield from aioamqp.connect('localhost', 5672)
+        transport, protocol = yield from aioamqp.connect(AMQP_HOST, 5672)
     except:
         print("closed connections")
         return
@@ -121,7 +143,9 @@ def receive_log():
                                                        queue_name=queue_name,
                                                        routing_key=binding_key), timeout=10)
 
-    print(' [*] Waiting for logs. To exit press CTRL+C')
+    logger.info(racer_name)
+    logger.info(' waiting for command')
+    print(' waiting for command')
     print(queue_name)
     print(type(channel))
     yield from channel.basic_consume(callback, queue_name=queue_name)
