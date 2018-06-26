@@ -1,0 +1,43 @@
+version: '2'
+
+services:
+  # Start RabbitMQ Service
+  rabbit:
+    hostname: rabbit
+    image: rabbitmq:3.6.1-management
+    environment:
+      - SERVICE_NAME=rabbit
+    ports:
+    # forward port for debugging
+      - "5672:5672"
+      - "15672:15672"
+
+  # Master
+  master:
+    build:
+      context: .
+      dockerfile: dockerfile_master
+    hostname: master
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # for getting logs on websocket
+    # setting up links for service discovery
+    links:
+      - rabbit
+
+  # Racer
+  racer:
+    build:
+      context: .
+      dockerfile: dockerfile_racer
+    hostname: racer
+    volumes:
+      - .:/app
+#
+    #ports:
+    # setting up links for service discovery
+    links:
+      - rabbit
+      - master
