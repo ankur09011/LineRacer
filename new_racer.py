@@ -13,6 +13,7 @@ from helpers import solve_for_y
 
 
 
+
 AMQP_HOST = "rabbit"
 AMQP_PORT =  5672
 
@@ -21,6 +22,8 @@ logging.basicConfig(format='%(asctime)s %(message)s')
 logger = logging.getLogger()
 
 logger.setLevel(logging.INFO)
+
+logger.info("Racer Sleeping")
 logger.info("Hello From Racer")
 
 
@@ -34,6 +37,27 @@ racer_name = "racer" + racer_number
 race_routing_key = "race"
 print(racer_name)
 logger.info(racer_name)
+
+
+
+def check_rabbitmq_server():
+    """
+    Wait till rabbit_mq server is up
+    # TODO: need to make it more robust
+    :return:
+    """
+
+    flag = False
+
+    while not flag:
+        try:
+            transport, protocol = yield from aioamqp.connect(AMQP_HOST, 5672)
+            flag = True
+            logger.info("Server Up")
+        except Exception:
+            logger.info("Server conection is closed")
+            # delay to check
+            sleep(1)
 
 
 
@@ -150,6 +174,9 @@ def receive_log():
     print(type(channel))
     yield from channel.basic_consume(callback, queue_name=queue_name)
 
+
 loop = asyncio.get_event_loop()
+
+loop.run_until_complete(check_rabbitmq_server())
 loop.create_task(receive_log())
 loop.run_forever()

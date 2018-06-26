@@ -3,7 +3,9 @@ import aioamqp
 import sys
 from helpers import get_intersection, distance
 import logging
+from time import sleep
 import time
+
 
 from aiohttp import web
 
@@ -36,18 +38,42 @@ farthest_racer = [racer_list[0], racer_list[1]]
 
 farthest_racer_current_cordinates = [[0, 0], [0, 0]]
 
-
-logging.getLogger('aiohttp').setLevel(logging.DEBUG)
-logging.getLogger('aiohttp').addHandler(logging.StreamHandler(sys.stderr))
 logging.basicConfig(format='%(asctime)s %(message)s')
 
 logger = logging.getLogger()
 
 logger.setLevel(logging.INFO)
+
+logger.info("Master Sleeping")
+
+
+
 logger.info("Hello From Master")
 
 
 
+def check_rabbitmq_server():
+    """
+    Wait till rabbit_mq server is up
+    # TODO: need to make it more robust
+    :return:
+    """
+
+    flag = False
+
+    while not flag:
+        try:
+            transport, protocol = yield from aioamqp.connect(AMQP_HOST, 5672)
+            flag = True
+            logger.info("Server Up")
+        except Exception:
+            logger.info("Server conection is closed")
+            # delay to check
+            sleep(1)
+
+    for _ in range(0,10):
+        logger.info("Starting Race in {} sec....".format(10-_))
+        sleep(1)
 
 
 async def time(websocket, path):
@@ -57,6 +83,10 @@ async def time(websocket, path):
         logging.info("sending logs from websocket")
         await websocket.send(str(now) + "---> from master")
         await asyncio.sleep(random.random() * 3)
+
+
+
+
 
 
 start_server = websockets.serve(time, '0.0.0.0', 5678)
@@ -96,7 +126,7 @@ def calculate_distance(channel):
         channel.publish(json.dumps(race_msg), exchange_name="race-exchange", routing_key="race")
         print(" [x] Sent %r" % race_msg)
 
-    time.sleep(slow_down_factor)
+    sleep(slow_down_factor)
 
 
 def generate_msg():
@@ -132,7 +162,9 @@ def exchange_routing_topic(msg):
     except aioamqp.AmqpClosedConnection:
         logging.exception("Error connecting AMQP")
         return
-
+    except Exception as e:
+        logging.exception("Error connecting AMQP")
+        return
     channel = yield from protocol.channel()
     print(sys.argv)
     exchange_name = 'race-exchange'
@@ -181,7 +213,7 @@ def manage_race():
     try:
         transport, protocol = yield from aioamqp.connect(AMQP_HOST, 5672)
     except:
-        print("closed connections")
+        logger.info("closed connections")
         return
 
     channel = yield from protocol.channel()
@@ -202,11 +234,11 @@ def manage_race():
     print(queue_name)
     print(type(channel))
 
-    print("sending start signal, will sleep for 1 second")
+    logging.info("sending start signal, will sleep for 1 second")
     # yield from asyncio.wait_for(exchange_routing_topic(),1)
     race_msg = generate_msg()
     yield from channel.publish(json.dumps(race_msg), exchange_name=exchange_name, routing_key="race")
-    print(" [x] Sent %r" % race_msg)
+    logging.info(" [x] Sent %r" % race_msg)
 
     logger.info(' waiting for command')
 
@@ -218,6 +250,6 @@ def manage_race():
 loop = asyncio.get_event_loop()
 
 loop.run_until_complete(start_server)
-
+loop.run_until_complete(check_rabbitmq_server())
 loop.create_task(manage_race())
 loop.run_forever()
