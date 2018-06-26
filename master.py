@@ -184,7 +184,7 @@ def generate_msg():
     # increase lap number for next call
     lap_no = lap_no + 1
     logger.info("new next lap count --> {}".format(lap_no))
-
+    logger.info(race_msg)
 
     return race_msg
 
