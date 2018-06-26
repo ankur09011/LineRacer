@@ -12,7 +12,9 @@ from helpers import solve_for_y
 
 
 
+total_number_of_laps  = 10
 
+help_counter = 1
 
 AMQP_HOST = "rabbit"
 AMQP_PORT =  5672
@@ -30,15 +32,15 @@ logger.info("Hello From Racer")
 #for debugging
 slow_down_factor = 1
 
-status = {'lap_no':1}
+status = {'lap_no': 1}
 
-racer_number = int(sys.argv[1] if len(sys.argv) > 1 else "2")
+racer_number = int(sys.argv[1] if len(sys.argv) > 1 else "1")
 
 racer_name = "racer{}".format(racer_number)
 
 
 race_routing_key = "race"
-print(racer_name)
+
 logger.info(racer_name)
 
 
@@ -139,24 +141,29 @@ def do_while_loop(body):
         y = solve_for_y(x, line)
         new_lap = status.get("lap_no")
 
+        logger.info("INSIDE FOR new lap --> {}, current-lap{}".format(new_lap, lap_no))
         logger.info(new_lap)
 
         if not new_lap==lap_no:
             race = False
 
         sleep(slow_down_factor)
-
+        # yield from asyncio.sleep(1)
         yield from exchange_routing_topic(x,y)
 
 
+    yield from asyncio.sleep(1)
 
 
+
+@asyncio.coroutine
 def set_flag(lap_no):
     global status
     logger.info("setting flag for lap number --> {} ".format(lap_no))
 
     if not lap_no==status.get("lap_no"):
         status["lap_no"] = lap_no
+    yield from asyncio.sleep(1)
 
 @asyncio.coroutine
 def do_work(envelope, body):
@@ -173,7 +180,8 @@ def do_work(envelope, body):
     lap_no = msg[racer_number][4]
 
     logger.info(" got lap no --> {} ".format(lap_no))
-    set_flag(lap_no)
+
+    yield from set_flag(lap_no)
 
     # lap_no = json.loads(body).get("lap_no")
 
@@ -181,6 +189,10 @@ def do_work(envelope, body):
 
 @asyncio.coroutine
 def callback(channel, body, envelope, properties):
+    if body == "exit":
+        logger.info("Race is finished...gracefully quiting")
+        sleep(10)
+        exit()
     loop = asyncio.get_event_loop()
     loop.create_task(do_work(envelope, body))
 
@@ -197,7 +209,7 @@ def receive_log():
     exchange_name = 'race-exchange'
     queue_name = 'async-queue-%s' % random.randint(0, 10000)
     yield from channel.exchange(exchange_name, 'topic', auto_delete=False, passive=False, durable=False)
-    yield from channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
+    # yield from channel.basic_qos(prefetch_count=1, prefetch_size=0, connection_global=False)
     yield from asyncio.wait_for(channel.queue(queue_name, durable=False, auto_delete=True), timeout=10)
 
     binding_keys = [race_routing_key]
