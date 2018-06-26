@@ -6,7 +6,6 @@ import logging
 from time import sleep
 import time
 
-
 from aiohttp import web
 
 import asyncio
@@ -14,26 +13,22 @@ import datetime
 import random
 import websockets
 
-
-
 AMQP_HOST = "rabbit"
-AMQP_PORT =  5672
-
-
+AMQP_PORT = 5672
 
 # setting default race prams
 
-initial_race_start_time = 8 # <----- warm up time
+initial_race_start_time = 8  # <----- warm up time
 
-slow_down_factor = 3    #<-- for debugging
+slow_down_factor = 3  # <-- for debugging
 
 lap_no = 1
 
 rec_in_lap_count = 0
 
-no_of_racer = sys.argv[1] if len(sys.argv) > 1 else "3" # <---- define argparse option here
+no_of_racer = sys.argv[1] if len(sys.argv) > 1 else "3"  # <---- define argparse option here
 
-max_distance = 10 #<--- for debugging, original requirement = 10
+max_distance = 10  # <--- for debugging, original requirement = 10
 
 racer_list = ["racer%d" % i for i in range(1, int(no_of_racer) + 1)]
 
@@ -43,7 +38,6 @@ farthest_racer_current_cordinates = [[0, 0], [0, 0]]
 
 race_sent_message_log = {}
 
-
 logging.basicConfig(format='%(asctime)s %(message)s')
 
 logger = logging.getLogger()
@@ -52,10 +46,38 @@ logger.setLevel(logging.INFO)
 
 logger.info("Master Sleeping")
 
-
-
 logger.info("Hello From Master")
 
+
+def generate_msg():
+    """
+    Generates a new race msg
+    :return:
+    """
+    global lap_no, racer_list, race_sent_message_log
+
+    logger.info(" settling every thing.. need 2 secs")  # <--- stablises it more logically (now for debug)
+    sleep(3)
+
+    logger.info(racer_list)
+
+    # generate random origin point
+    x = random.randint(1, 10)
+    y = random.randint(1, 10)
+
+    race_msg = [[]]
+    for each_racer in racer_list:
+        slope = random.randint(1, 10)
+        intcpt = y - (slope * x)
+
+        race_msg.append([slope, intcpt, x, y, lap_no])
+
+    # increase lap number for next call
+    lap_no = lap_no + 1  # <---- increase everytime message is generated
+    logger.info("new next lap count --> {}".format(lap_no))
+    logger.info(race_msg)
+
+    return race_msg
 
 
 def check_rabbitmq_server():
@@ -77,11 +99,9 @@ def check_rabbitmq_server():
             # delay to check
             sleep(1)
 
-    for _ in range(0,initial_race_start_time):
-        logger.info(" Looking for racers.....starting Race in {} sec....".format(initial_race_start_time-_))
+    for _ in range(0, initial_race_start_time):
+        logger.info(" Looking for racers.....starting Race in {} sec....".format(initial_race_start_time - _))
         sleep(1)
-
-
 
 
 async def time(websocket, path):
@@ -93,13 +113,7 @@ async def time(websocket, path):
         await asyncio.sleep(random.random() * 3)
 
 
-
-
-
-
 start_server = websockets.serve(time, '0.0.0.0', 5672)
-
-
 
 # test message
 msg = {
@@ -133,11 +147,8 @@ def calculate_distance(channel):
 
     logger.info("check_distnace %d" % dis)
 
-
-
     # send new lap message if not already sent and dis is greater than allowed
     if (dis > max_distance) and (lap_no not in race_sent_message_log.keys()):
-
         logger.info("Sending message for lap no  --> {}".format(lap_no))
         race_msg = generate_msg()
 
@@ -146,47 +157,6 @@ def calculate_distance(channel):
         logger.info("distance complete, sent new lap info -->" % race_msg)
 
     sleep(slow_down_factor)
-
-
-def generate_msg():
-
-    global lap_no, racer_list, race_sent_message_log
-
-    logger.info(" settling every thing.. need 2 secs") # <--- stablises it more logically (now for debug)
-    sleep(3)
-
-
-
-    logger.info(racer_list)
-
-    # generate random origin point
-    x = random.randint(1, 10)
-    y = random.randint(1, 10)
-
-    race_msg = [[]]
-    for each_racer in racer_list:
-        slope = random.randint(1, 10)
-        intcpt = y - (slope * x)
-
-
-
-        race_msg.append( [slope, intcpt, x, y, lap_no])
-
-        # for debugging purpose
-        race_sent_message_log[lap_no] = {}
-        race_sent_message_log[lap_no][each_racer] = {}
-
-        race_sent_message_log[lap_no][each_racer]["slope"] = slope
-        race_sent_message_log[lap_no][each_racer]["intcpt"] = y - (slope * x)
-        race_sent_message_log[lap_no][each_racer]["x"] = x
-        race_sent_message_log[lap_no][each_racer]["y"] = y
-
-    # increase lap number for next call
-    lap_no = lap_no + 1
-    logger.info("new next lap count --> {}".format(lap_no))
-    logger.info(race_msg)
-
-    return race_msg
 
 
 @asyncio.coroutine
@@ -202,7 +172,7 @@ def exchange_routing_topic(msg):
     channel = yield from protocol.channel()
     print(sys.argv)
     exchange_name = 'race-exchange'
-    routing_key = sys.argv[1] if len(sys.argv) > 1 else 'race'
+    routing_key = 'race'
 
     yield from channel.exchange(exchange_name, 'topic')
 
@@ -215,7 +185,6 @@ def exchange_routing_topic(msg):
 
 @asyncio.coroutine
 def do_work(envelope, body, channel):
-
     global lap_no
     body = json.loads(body)
     logger.info(body)
@@ -226,8 +195,7 @@ def do_work(envelope, body, channel):
     racer_lap_no = body.get("lap_no")
     logger.info("current master lap no ---> {}".format(lap_no))
 
-
-    if (lap_no-1) == racer_lap_no:
+    if (lap_no - 1) == racer_lap_no:
 
         if racer_name == farthest_racer[0]:
             farthest_racer_current_cordinates[0][0] = x
@@ -239,15 +207,13 @@ def do_work(envelope, body, channel):
 
         # print(farthest_racer_current_cordinates)
 
-
         calculate_distance(channel)
-
 
         logger.info('Racer --> {} , Point --> {},{} '.format(racer_name, x, y))
         print('Racer --> {} , Point --> {},{} '.format(racer_name, x, y))
 
     else:
-        logger.info(" message for pervious lap, current-lap is {} and msg lap is {}".format(lap_no-1, racer_lap_no) )
+        logger.info(" message for pervious lap, current-lap is {} and msg lap is {}".format(lap_no - 1, racer_lap_no))
 
     yield
 
@@ -292,9 +258,7 @@ def manage_race():
 
     logger.info(' waiting for command')
 
-
     yield from channel.basic_consume(callback, queue_name=queue_name)
-
 
 
 loop = asyncio.get_event_loop()
