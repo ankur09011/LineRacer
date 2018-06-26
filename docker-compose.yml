@@ -27,8 +27,12 @@ services:
     links:
       - rabbit
 
-  # Racer
-  racer:
+
+  ## currently harcoding racer, modify it to scale the racer as
+  ## required and passing {variable} as name
+
+  # First Racer
+  racer1:
     build:
       context: .
       dockerfile: dockerfile_racer
@@ -38,6 +42,39 @@ services:
 #
     #ports:
     # setting up links for service discovery
+    command: python new_racer.py 1
+    links:
+      - rabbit
+      - master
+
+  # Second Racer
+  racer2:
+    build:
+      context: .
+      dockerfile: dockerfile_racer
+    hostname: racer
+    volumes:
+      - .:/app
+#
+    #ports:
+    # setting up links for service discovery
+    command: python new_racer.py 2
+    links:
+      - rabbit
+      - master
+
+  # Third Racer
+  racer3:
+    build:
+      context: .
+      dockerfile: dockerfile_racer
+    hostname: racer
+    volumes:
+      - .:/app
+#
+    #ports:
+    # setting up links for service discovery
+    command: python new_racer.py 3
     links:
       - rabbit
       - master

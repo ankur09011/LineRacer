@@ -22,21 +22,27 @@ AMQP_PORT =  5672
 
 
 # setting default race prams
-slow_down_factor = 3
 
-lap_no = 2
+initial_race_start_time = 8 # <----- warm up time
+
+slow_down_factor = 3    #<-- for debugging
+
+lap_no = 1
 
 rec_in_lap_count = 0
 
-no_of_racer = 2
+no_of_racer = sys.argv[1] if len(sys.argv) > 1 else "3" # <---- define argparse option here
 
-max_distance = 200
+max_distance = 200 #<--- for debugging, original requirement = 10
 
-racer_list = ["racer%d" % i for i in range(1, no_of_racer + 1)]
+racer_list = ["racer%d" % i for i in range(1, int(no_of_racer) + 1)]
 
 farthest_racer = [racer_list[0], racer_list[1]]
 
 farthest_racer_current_cordinates = [[0, 0], [0, 0]]
+
+race_sent_message_log = {}
+
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 
@@ -60,20 +66,22 @@ def check_rabbitmq_server():
     """
 
     flag = False
-
+    registerd_racer = 0
     while not flag:
         try:
             transport, protocol = yield from aioamqp.connect(AMQP_HOST, 5672)
             flag = True
-            logger.info("Server Up")
+            logger.info("RabbitMQ Server Up")
         except Exception:
-            logger.info("Server conection is closed")
+            logger.info("RabbitMQ Server conection is closed")
             # delay to check
             sleep(1)
 
-    for _ in range(0,10):
-        logger.info("Starting Race in {} sec....".format(10-_))
+    for _ in range(0,initial_race_start_time):
+        logger.info(" Looking for racers.....starting Race in {} sec....".format(initial_race_start_time-_))
         sleep(1)
+
+
 
 
 async def time(websocket, path):
@@ -81,7 +89,7 @@ async def time(websocket, path):
         now = datetime.datetime.utcnow().isoformat() + 'Z'
         print("sending logs from websocket")
         logging.info("sending logs from websocket")
-        await websocket.send(str(now) + "---> from master")
+        await websocket.send(str(now) + "---> " + str(farthest_racer_current_cordinates))
         await asyncio.sleep(random.random() * 3)
 
 
@@ -89,9 +97,11 @@ async def time(websocket, path):
 
 
 
-start_server = websockets.serve(time, '0.0.0.0', 5678)
+start_server = websockets.serve(time, '0.0.0.0', 5672)
 
 
+
+# test message
 msg = {
     "x": 1,
     "y": 2,
@@ -107,9 +117,9 @@ msg = {
 
 
 def calculate_distance(channel):
-    print("check_distnace")
+    logger.info("calculating distance")
 
-    global farthest_racer_current_cordinates
+    global farthest_racer_current_cordinates, race_sent_message_log, lap_no
 
     x1 = farthest_racer_current_cordinates[0][0]
     y1 = farthest_racer_current_cordinates[0][1]
@@ -118,45 +128,66 @@ def calculate_distance(channel):
 
     dis = distance(x1, y1, x2, y2)
 
-    print("check_distnace %d" % dis)
+    logger.info("check_distnace %d" % dis)
 
-    if dis > max_distance:
+
+
+    # send new lap message if not already sent and dis is greater than allowed
+    if (dis > max_distance) and (lap_no not in race_sent_message_log.keys()):
+
+        logger.info("Sending message for lap no  --> {}".format(lap_no))
         race_msg = generate_msg()
 
+        race_sent_message_log[lap_no] = race_msg
         channel.publish(json.dumps(race_msg), exchange_name="race-exchange", routing_key="race")
-        print(" [x] Sent %r" % race_msg)
+        logger.info("distance complete, sent new lap info -->" % race_msg)
 
     sleep(slow_down_factor)
 
 
 def generate_msg():
-    global lap_no, racer_list
 
-    race_msg = {"lap_no": lap_no}
+    global lap_no, racer_list, race_sent_message_log
 
-    print(racer_list)
+    logger.info(" settling every thing.. need 2 secs") # <--- stablises it more logically (now for debug)
+    sleep(3)
 
+
+
+    logger.info(racer_list)
+
+    # generate random origin point
     x = random.randint(1, 10)
     y = random.randint(1, 10)
 
-    race_msg["x"] = x
-    race_msg["y"] = y
-
+    race_msg = [[]]
     for each_racer in racer_list:
-        race_msg[each_racer] = {}
         slope = random.randint(1, 10)
-        race_msg[each_racer]["slope"] = slope
-        race_msg[each_racer]["intcpt"] = y - (slope * x)
+        intcpt = y - (slope * x)
+
+
+
+        race_msg.append( [slope, intcpt, x, y, lap_no])
+
+        # for debugging purpose
+        race_sent_message_log[lap_no] = {}
+        race_sent_message_log[lap_no][each_racer] = {}
+
+        race_sent_message_log[lap_no][each_racer]["slope"] = slope
+        race_sent_message_log[lap_no][each_racer]["intcpt"] = y - (slope * x)
+        race_sent_message_log[lap_no][each_racer]["x"] = x
+        race_sent_message_log[lap_no][each_racer]["y"] = y
 
     # increase lap number for next call
     lap_no = lap_no + 1
+    logger.info("new next lap count --> {}".format(lap_no))
+
 
     return race_msg
 
 
 @asyncio.coroutine
 def exchange_routing_topic(msg):
-    print("sending to racer1")
     try:
         transport, protocol = yield from aioamqp.connect(AMQP_HOST, 5672)
     except aioamqp.AmqpClosedConnection:
@@ -173,7 +204,7 @@ def exchange_routing_topic(msg):
     yield from channel.exchange(exchange_name, 'topic')
 
     yield from channel.publish(msg, exchange_name=exchange_name, routing_key=routing_key)
-    print(" [x] Sent %r" % msg)
+    logger.info(" [x] Sent %r" % msg)
 
     yield from protocol.close()
     transport.close()
@@ -181,23 +212,37 @@ def exchange_routing_topic(msg):
 
 @asyncio.coroutine
 def do_work(envelope, body, channel):
+
+    global lap_no
     body = json.loads(body)
+    logger.info(body)
     racer_name = body.get("racer_name")
+
     x = body.get("x")
     y = body.get("y")
+    racer_lap_no = body.get("lap_no")
 
-    if racer_name == farthest_racer[0]:
-        farthest_racer_current_cordinates[0][0] = x
-        farthest_racer_current_cordinates[0][1] = y
+    if (lap_no-1) == racer_lap_no:
 
-    if racer_name == farthest_racer[1]:
-        farthest_racer_current_cordinates[1][0] = x
-        farthest_racer_current_cordinates[1][1] = y
+        if racer_name == farthest_racer[0]:
+            farthest_racer_current_cordinates[0][0] = x
+            farthest_racer_current_cordinates[0][1] = y
 
-    # print(farthest_racer_current_cordinates)
-    calculate_distance(channel)
-    logger.info('Racer --> {} , Point --> {},{} '.format(racer_name, x, y))
-    print('Racer --> {} , Point --> {},{} '.format(racer_name, x, y))
+        if racer_name == farthest_racer[1]:
+            farthest_racer_current_cordinates[1][0] = x
+            farthest_racer_current_cordinates[1][1] = y
+
+        # print(farthest_racer_current_cordinates)
+
+
+        calculate_distance(channel)
+
+
+        logger.info('Racer --> {} , Point --> {},{} '.format(racer_name, x, y))
+        print('Racer --> {} , Point --> {},{} '.format(racer_name, x, y))
+
+    else:
+        logger.info(" message for pervious lap, current-lap is {} and msg lap is {}".format(lap_no-1, racer_lap_no) )
 
     yield
 
@@ -249,7 +294,12 @@ def manage_race():
 
 loop = asyncio.get_event_loop()
 
+# start ws server
 loop.run_until_complete(start_server)
+
+# check rabbitmq server up or not
 loop.run_until_complete(check_rabbitmq_server())
+
 loop.create_task(manage_race())
+
 loop.run_forever()

@@ -79,3 +79,44 @@ def distance(x1 , y1 , x2 , y2):
     """
     return math.sqrt(math.pow(x2 - x1, 2) +
                 math.pow(y2 - y1, 2) * 1.0)
+
+
+class log_keeper:
+    """
+    Object for keeping logs, manipulating and adding functionality on
+    top of it
+    """
+
+    def __init__(self, no_of_racer, maximum_distance_allowed):
+
+        self.no_of_racer = no_of_racer
+
+        self.record = []
+        self.maximum_distance_allowed = maximum_distance_allowed
+        self.current_lap = 1
+        self.no_of_lap = 10
+        self.in_lap_count = 1
+        self.book = {}
+        self.generate_book()
+
+
+
+    def update_record(self, record):
+        self.record.append(record)
+
+
+    def check_distance(self):
+        pass
+
+    def generate_book(self):
+
+        book = {}
+
+        for lap in range(1, self.no_of_lap + 1):
+
+            book[lap] = {}
+
+            for racer in range(1, self.no_of_racer + 1):
+                book[lap]["racer"+str(racer)] = []
+
+        self.book = book
