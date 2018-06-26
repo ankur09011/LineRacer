@@ -111,12 +111,20 @@ class log_keeper:
     def generate_book(self):
 
         book = {}
+        book["laps"]={}
 
         for lap in range(1, self.no_of_lap + 1):
 
-            book[lap] = {}
+            book["laps"][lap] = {
+
+                         "start_time_stamp" : str(datetime.now()),
+                         "slope": [],
+                         "intcpt":[],
+                         "farthest_racer":[],
+                         "current_max_disctance": 0
+                         }
+
 
             for racer in range(1, self.no_of_racer + 1):
-                book[lap]["racer"+str(racer)] = []
-
+                book["laps"][lap]["racer" + str(racer)] = {}
         self.book = book
