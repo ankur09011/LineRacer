@@ -1,5 +1,4 @@
 from helpers import get_intersection, solve_for_y, distance
-from lineobject import LineObject
 
 line1 = {"slope" : 5.5,
          "intcpt" : 2}
