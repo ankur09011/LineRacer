@@ -33,7 +33,7 @@ rec_in_lap_count = 0
 
 no_of_racer = sys.argv[1] if len(sys.argv) > 1 else "3" # <---- define argparse option here
 
-max_distance = 200 #<--- for debugging, original requirement = 10
+max_distance = 10 #<--- for debugging, original requirement = 10
 
 racer_list = ["racer%d" % i for i in range(1, int(no_of_racer) + 1)]
 
@@ -224,10 +224,10 @@ def do_work(envelope, body, channel):
     x = body.get("x")
     y = body.get("y")
     racer_lap_no = body.get("lap_no")
-    logger.info("current master lap no ---> {}".format(racer_lap_no))
+    logger.info("current master lap no ---> {}".format(lap_no))
 
 
-    if (lap_no) == racer_lap_no:
+    if (lap_no-1) == racer_lap_no:
 
         if racer_name == farthest_racer[0]:
             farthest_racer_current_cordinates[0][0] = x
