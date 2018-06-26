@@ -121,6 +121,9 @@ def calculate_distance(channel):
 
     global farthest_racer_current_cordinates, race_sent_message_log, lap_no
 
+    logger.info(farthest_racer)
+    logger.info(farthest_racer_current_cordinates)
+
     x1 = farthest_racer_current_cordinates[0][0]
     y1 = farthest_racer_current_cordinates[0][1]
     x2 = farthest_racer_current_cordinates[1][0]
@@ -221,8 +224,10 @@ def do_work(envelope, body, channel):
     x = body.get("x")
     y = body.get("y")
     racer_lap_no = body.get("lap_no")
+    logger.info("current master lap no ---> {}".format(racer_lap_no))
 
-    if (lap_no-1) == racer_lap_no:
+
+    if (lap_no) == racer_lap_no:
 
         if racer_name == farthest_racer[0]:
             farthest_racer_current_cordinates[0][0] = x
