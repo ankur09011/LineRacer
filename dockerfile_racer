@@ -2,8 +2,7 @@
 FROM python:3.6
 
 WORKDIR /app/
-# add requirements.txt to the image
-ADD ./app.py /app/
+ADD ./. /app/
 RUN apt-get update
 RUN apt-get -y install libpq-dev python-dev
 ADD requirements.txt /app/requirements.txt
